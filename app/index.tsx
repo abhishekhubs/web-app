@@ -11,7 +11,7 @@ export default function LandingPage() {
     const router = useRouter();
 
     const handleGetStarted = () => {
-        router.push('/(tabs)');
+        router.push('/auth/login');
     };
 
     return (

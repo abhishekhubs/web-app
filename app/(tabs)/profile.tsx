@@ -4,10 +4,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
     const [showFarmhandJobs, setShowFarmhandJobs] = useState(true);
     const [showFarmownerJobs, setShowFarmownerJobs] = useState(false);
+    const { logout, currentUser } = useAuth();
+    const router = useRouter();
+
+    const handleLogout = () => {
+        logout();
+        router.replace('/');
+    };
 
     return (
         <View style={styles.container}>
@@ -33,7 +42,7 @@ export default function ProfileScreen() {
                     <View style={styles.avatarContainer}>
                         <Text style={styles.avatar}>👨‍🌾</Text>
                     </View>
-                    <Text style={styles.name}>Abhishek Shrivastav</Text>
+                    <Text style={styles.name}>{currentUser?.fullName || 'Abhishek Shrivastav'}</Text>
                     <Text style={styles.userId}>📞*******908</Text>
                     <View style={styles.ratingContainer}>
                         <Ionicons name="star" size={18} color="#d6d0b1ff" />
@@ -101,7 +110,7 @@ export default function ProfileScreen() {
                     <MenuOption icon="wallet" label="My Investments" />
                     <MenuOption icon="notifications" label="Notifications" />
                     <MenuOption icon="help-circle" label="Help & Support" />
-                    <MenuOption icon="log-out" label="Logout" danger />
+                    <MenuOption icon="log-out" label="Logout" danger onPress={handleLogout} />
                 </View>
 
                 <View style={{ height: 80 }} />
@@ -157,13 +166,15 @@ const JobStatusCard = ({
 const MenuOption = ({
     icon,
     label,
-    danger = false
+    danger = false,
+    onPress
 }: {
     icon: any;
     label: string;
     danger?: boolean;
+    onPress?: () => void;
 }) => (
-    <TouchableOpacity style={styles.menuItem}>
+    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
         <View style={styles.menuLeft}>
             <Ionicons
                 name={icon}
