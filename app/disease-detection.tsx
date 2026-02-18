@@ -6,6 +6,11 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+
+// REPLACE WITH YOUR PC'S IP ADDRESS
+// e.g., 'http://192.168.1.100:5000/analyze'
+const SERVER_URL = 'http://10.202.42.210:5000/analyze';
 
 export default function DiseaseDetectionScreen() {
     const router = useRouter();
@@ -32,19 +37,28 @@ export default function DiseaseDetectionScreen() {
     };
 
     const handleTakePhoto = async () => {
-        const hasPermission = await requestCameraPermission();
-        if (!hasPermission) return;
+        try {
+            const hasPermission = await requestCameraPermission();
+            if (!hasPermission) {
+                Alert.alert("Debug", "No camera permission");
+                return;
+            }
 
-        const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.8,
-        });
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+            });
 
-        if (!result.canceled && result.assets[0]) {
-            setSelectedImage(result.assets[0].uri);
-            analyzeImage(result.assets[0].uri);
+            if (!result.canceled && result.assets[0]) {
+                const uri = result.assets[0].uri;
+                setSelectedImage(uri);
+                analyzeImage(uri);
+            }
+        } catch (error) {
+            Alert.alert("Camera Error", "Failed to open camera: " + error);
+            console.error(error);
         }
     };
 
@@ -60,8 +74,9 @@ export default function DiseaseDetectionScreen() {
         });
 
         if (!result.canceled && result.assets[0]) {
-            setSelectedImage(result.assets[0].uri);
-            analyzeImage(result.assets[0].uri);
+            const uri = result.assets[0].uri;
+            setSelectedImage(uri);
+            analyzeImage(uri);
         }
     };
 
@@ -69,22 +84,56 @@ export default function DiseaseDetectionScreen() {
         setIsAnalyzing(true);
         setResult(null);
 
-        // Simulate AI analysis (replace with actual API call)
-        setTimeout(() => {
-            setIsAnalyzing(false);
-            setResult({
-                disease: 'Leaf Blight',
-                confidence: 87,
-                severity: 'Moderate',
-                treatment: [
-                    'Remove affected leaves',
-                    'Apply fungicide spray',
-                    'Ensure proper drainage',
-                    'Increase air circulation'
-                ],
-                description: 'Leaf blight is a common fungal disease that affects various crops. Early detection and treatment are crucial.'
+        try {
+            // 1. Resize image to reduce upload size (Optional but recommended)
+            const manipResult = await manipulateAsync(
+                imageUri,
+                [{ resize: { width: 500 } }], // Resize width to 500px, maintain aspect ratio
+                { format: SaveFormat.JPEG, compress: 0.8 }
+            );
+
+            // 2. Create FormData
+            const formData = new FormData();
+            formData.append('image', {
+                uri: manipResult.uri,
+                name: 'photo.jpg',
+                type: 'image/jpeg',
+            } as any);
+
+            // 3. Send to Python Server
+            const response = await fetch(SERVER_URL, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
             });
-        }, 2000);
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Server error');
+            }
+
+            // 4. Set Result
+            setResult({
+                disease: data.disease,
+                confidence: data.confidence,
+                severity: data.severity,
+                description: data.description,
+                treatment: [
+                    'Isolate the plant immediately.',
+                    'Check specific treatment for ' + data.disease,
+                    'Monitor neighboring plants.'
+                ],
+            });
+
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Analysis Failed", "Could not connect to server. Ensure your PC server is running and IP is correct. Error: " + error);
+        } finally {
+            setIsAnalyzing(false);
+        }
     };
 
     const handleReset = () => {

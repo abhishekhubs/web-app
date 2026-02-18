@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+
+global.Buffer = global.Buffer || require('buffer').Buffer;
 import { AuthProvider } from '@/contexts/AuthContext';
 
 export default function RootLayout() {
